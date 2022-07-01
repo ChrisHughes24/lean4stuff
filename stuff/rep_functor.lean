@@ -1,3 +1,4 @@
+
 inductive Cat :=
 | Set : Cat
 | var (n : Nat) : Cat
@@ -22,15 +23,71 @@ inductive Func : Cat → Cat → Type where
 
 end
 
-def Func.comp : {C D E : Cat} → (F : Func C D) → (G : Func D E) → Func C E
-| _, _, _, Func.id _,      G => G
-| _, _, _, Func.comp' F G, H => Func.comp' F (comp G H)
+-- def Func.comp : {C D E : Cat} → (F : Func C D) → (G : Func D E) → Func C E
+-- | _, _, _, Func.id _,      G => G
+-- | _, _, _, Func.comp' F G, H => Func.comp' F (comp G H)
+-- #print prefix Func
+noncomputable def Func.comp {C D : Cat} (F : Func C D) : (E : Cat) → (G : Func D E) → Func C E :=
+@Func.recOn (λ _ _ => Unit) (λ C D _ => Unit) (λ C D F => (E : Cat) → (G : Func D E) → Func C E)
+  C
+  D
+  F
+  (λ _ _ => ())
+  (λ _ _ => ())
+  (λ _ _ _ _ => ())
+  (λ _ _ _ => ())
+  (λ _ _ _ => ())
+  (λ _ _ _ _ => ())
+  (λ C' D' G => G)
+  (λ F _ _ ih E' G => Func.comp' F (ih _ G))
 
-def Func.app : {C D : Cat} → (F : Func C D) → Obj C → Obj D
-| _, _, Func.id _,      X => X
-| _, _, Func.comp' F G, X => app G (Obj.app' F X)
+-- def Func.app : {C D : Cat} → (F : Func C D) → Obj C → Obj D
+-- | _, _, Func.id _,      X => X
+-- | _, _, Func.comp' F G, X => app G (Obj.app' F X)
 
-def Func.hom {C : Cat} (X : Obj C) : Func C Cat.Set :=
+noncomputable def Func.app {C D : Cat} (F : Func C D) : (X : Obj C) → Obj D :=
+@Func.recOn (λ _ _ => Unit) (λ C D _ => Unit) (λ C D _ => Obj C → Obj D)
+  C
+  D
+  F
+  (λ _ _ => ())
+  (λ _ _ => ())
+  (λ _ _ _ _ => ())
+  (λ _ _ _ => ())
+  (λ _ _ _ => ())
+  (λ _ _ _ _ => ())
+  (λ _ X => X)
+  (λ F _ _ ih X => ih (Obj.app' F X))
+
+theorem appInj {C₁ C₂ D : Cat} : {F₁ : Func C₁ D} → {F₂ : Func C₂ D} →
+  {X₁ : Obj C₁} → {X₂ : Obj C₂} →
+  (h : F₁.app X₁ = F₂.app X₂) →
+  C₁ = C₂ ∧ HEq F₁ F₂ ∧ HEq X₁ X₂ := sorry
+
+--   by
+-- cases F₁
+-- . cases F₂
+--   . cases X₁
+--     . cases X₂
+--       . injection h with _ n_eq
+--         subst n_eq
+--         exact ⟨rfl, rfl⟩
+--       . injection h
+--     . cases X₂
+--       . injection h
+--       . injection h with _ F_eq
+--         subst F_eq
+--         exact ⟨rfl, rfl⟩
+--   . cases X₁
+--     . cases X₂
+--       . rw [Func.app, Func.app] at h
+--         simp at h
+--         injection h
+
+
+
+
+@[reducible] def Func.hom {C : Cat} (X : Obj C) : Func C Cat.Set :=
 Func.comp' (Func'.hom C X) (Func.id _)
 
 def Func.var (C D : Cat) (n : Nat) : Func C D :=
@@ -38,6 +95,11 @@ Func.comp' (Func'.var C D n) (Func.id _)
 
 def Func.prod {C : Cat} (F G : Func C Cat.Set) : Func C Cat.Set :=
 Func.comp' (Func'.prod F G) (Func.id _)
+
+@[reducible] def homm {C : Cat} (X Y : Obj C) : Obj Cat.Set :=
+Obj.app' (Func'.hom C X) Y
+
+theorem hommEqHom {C : Cat} (X Y : Obj C) : homm X Y = (Func.hom X).app Y := rfl
 
 open Func Obj
 
@@ -122,8 +184,8 @@ inductive HeadSymbol
 
 open HeadSymbol
 
-inductive NormElemAux : HeadSymbol → Obj Cat.Set →  Type
-| var (X : Obj Cat.Set) (x : Γ.elem X) : NormElemAux VEU X
+inductive NormElemAux : HeadSymbol → Obj Cat.Set → Type
+| var {X : Obj Cat.Set} (x : Γ.elem X) : NormElemAux VEU X
 | id {C : Cat} (X : Obj C) : NormElemAux ICAM ((Func.hom X).app X)
 | comp {C : Cat} {X Y Z : Obj C} {s t : HeadSymbol} (hs : s ≠ IC)
   (f : NormElemAux s ((hom X).app Y))
@@ -156,18 +218,91 @@ namespace NormElem
 variable {C : Cat}
 
 def var (X : Obj Cat.Set) (v : Γ.elem X) : NormElem Γ X :=
-⟨VEU, NormElemAux.var X v⟩
+⟨VEU, NormElemAux.var v⟩
 
 def id (X : Obj C) : NormElem Γ ((hom X).app X) :=
 ⟨IC, NormElemAux.id X⟩
 
-def comp {X Y Z : Obj C}
+set_option maxHeartbeats 1000000
+
+def compAux
+  {A : Obj Cat.Set}
   {s : HeadSymbol}
-  (x : NormElemAux Γ s ((hom X).app Y)) :
+  (f : NormElemAux Γ s A) :
+  {X Y Z : Obj C} →
+  (hA : A = ((hom X).app Y)) →
+  {B : Obj Cat.Set} →
+  (hB : B = ((hom Y).app Z)) →
   {t : HeadSymbol} →
-  (y : NormElemAux Γ t ((hom Y).app Z)) →
+  (g : NormElemAux Γ t B) →
   NormElem Γ ((hom X).app Z) :=
-NormElemAux.recOn x _ _ _ _ _ _ _ _ _ _
+@NormElemAux.recOn Γ
+  (λ s A f => (X Y Z : Obj C) → (hA : A = ((hom X).app Y)) →
+    (B : Obj Cat.Set) →
+    (hB : B = ((hom Y).app Z)) →
+    (t : HeadSymbol) →
+    (g : NormElemAux Γ t B) →
+    NormElem Γ ((hom X).app Z))
+  s A f
+  (λ f' X Y Z hA B hB t g => show NormElem Γ (app (hom X) Z) by
+    subst hA hB
+    exact ⟨_, NormElemAux.comp HeadSymbol.noConfusion
+      (NormElemAux.var f') g⟩)
+  (λ A' X Y Z hA B hB t g => show NormElem Γ (app (hom X) Z) by
+    subst hB
+    injection hA with C_eq _ F_eq A_eq
+    subst C_eq
+    have F_eq' := eq_of_heq F_eq
+    injection F_eq' with F_eq₂ A_eq₂
+    subst A_eq₂
+    have A_eq' := eq_of_heq A_eq
+    subst A_eq'
+    exact ⟨_, g⟩)
+  (λ hs f' g' ihf ihg X Y Z hA B hB _ h' => show NormElem Γ (app (hom X) Z) by
+    subst hB
+    injection hA with C_eq _ F_eq A_eq
+    subst C_eq
+    have F_eq' := eq_of_heq F_eq
+    injection F_eq' with F_eq₂ A_eq₂
+    subst A_eq₂
+    have A_eq' := eq_of_heq A_eq
+    subst A_eq'
+    exact ⟨_, NormElemAux.comp hs f' (ihg _ _ _ rfl _ rfl _ h').2⟩)
+  (λ hs f' x ihf ihx X Y Z hA B hB t g => show NormElem Γ (app (hom X) Z) by
+      subst hB hA
+      exact ⟨_, NormElemAux.comp HeadSymbol.noConfusion (NormElemAux.app hs f' x) g⟩)
+  (λ F X Y s hs f' ihf Z V W hA B hB t g => show NormElem Γ (app (hom Z) W) by
+    subst hB
+    injection hA with C_eq _ F_eq A_eq
+    subst C_eq
+    have F_eq' := eq_of_heq F_eq
+    injection F_eq' with F_eq₂ A_eq₂
+    subst A_eq₂
+    have A_eq' := eq_of_heq A_eq
+    subst A_eq'
+    exact ⟨_, NormElemAux.comp HeadSymbol.noConfusion (NormElemAux.map F hs f') g⟩)
+  (λ F hC W  X Y Z hA B hB t g => show NormElem Γ (app (hom X) Z) by
+    subst hB
+    injection hA with C_eq _ F_eq A_eq
+    subst C_eq
+    have F_eq' := eq_of_heq F_eq
+    injection F_eq' with F_eq₂ A_eq₂
+    subst A_eq₂
+    have A_eq' := eq_of_heq A_eq
+    subst A_eq'
+    exact ⟨_, NormElemAux.comp HeadSymbol.noConfusion (NormElemAux.extend _ hC) g⟩)
+  (λ F hC X Y Z hA B hB t g => show NormElem Γ (app (hom X) Z) by
+    subst hB
+    have hA₁ := (appInj hA).1
+    subst hA₁
+    have hA₂ := eq_of_heq (appInj hA).2.1
+    subst hA₂
+    have hA₃ := eq_of_heq (appInj hA).2.2
+    subst hA₃
+    exact ⟨_, NormElemAux.comp HeadSymbol.noConfusion (NormElemAux.unit _ hC) g⟩)
+  _
+  _
+  _
 
 
 
