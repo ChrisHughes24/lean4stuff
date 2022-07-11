@@ -25,17 +25,17 @@ end
 mutual
 
 def ObjContainsCorepr : {D : Cat} → (F : Func D Cat.Set) → {C : Cat} → Obj C → Prop
-| _, F, _, Obj.var _ _ => false
+| _, F, _, Obj.var _ _  => False
 | _, F, _, Obj.corepr G => FuncContainsCorepr F G ∨ HEq F G
 | _, F, _, Obj.app' _ X => ObjContainsCorepr F X
 | _, F, _, Obj.prod X Y => ObjContainsCorepr F X ∨ ObjContainsCorepr F Y
 | _, F, _, Obj.hom X Y => ObjContainsCorepr F X ∨ ObjContainsCorepr F Y
 
 def FuncContainsCorepr : {C : Cat} → (F : Func C Cat.Set) → {C' D' : Cat} → (G : Func C' D') → Prop
-| _, F, _, _, Func.id _ => false
+| _, F, _, _, Func.id _        => False
 | _, F, _, _, Func.compVar G _ => FuncContainsCorepr F G
-| _, F, _, _, Func.prod G₁ G₂ => FuncContainsCorepr F G₁ ∨ FuncContainsCorepr F G₂
-| _, F, _, _, Func.hom _ X => ObjContainsCorepr F X
+| _, F, _, _, Func.prod G₁ G₂  => FuncContainsCorepr F G₁ ∨ FuncContainsCorepr F G₂
+| _, F, _, _, Func.hom _ X     => ObjContainsCorepr F X
 | _, F, _, _, Func.compHom G X => FuncContainsCorepr F G ∨ ObjContainsCorepr F X
 
 end
@@ -76,9 +76,6 @@ open Func Obj
 structure Context : Type 1 :=
 ( elem : Obj Cat.Set → Type )
 ( isCorepr : {C : Cat} → Func C Set → Prop )
-
-def Cool (Γ : Context) : Prop :=
-∀ {C : Cat} (F : Func C Set), ∃
 
 variable (Γ : Context)
 
@@ -152,10 +149,8 @@ inductive HeadSymbol
 | fst : HeadSymbol
 | snd : HeadSymbol
 | prodMk : HeadSymbol
-| id : HeadSymbol
-| comp : HeadSymbol
-| app : HeadSymbol
-| map (v : Nat) : HeadSymbol
+| ic : HeadSymbol -- id, comp
+| ma : HeadSymbol --map, app
 
 /-
   Normalisation rules.
@@ -179,17 +174,17 @@ open HeadSymbol
 -- Don't need composition. hom is already a functor.
 inductive NormElemAux : HeadSymbol → Obj Cat.Set → Type
 | var {X : Obj Cat.Set} (x : Γ.elem X) : NormElemAux veu X
-| id {C : Cat} (X : Obj C) : NormElemAux id (hom X X)
-| comp {C : Cat} {X Y Z : Obj C} {s : HeadSymbol} (hs : s ≠ id)
+| id {C : Cat} (X : Obj C) : NormElemAux ic (hom X X)
+| comp {C : Cat} {X Y Z : Obj C} {s : HeadSymbol} (hs : s ≠ ic)
   (f : NormElemAux s (hom X Y)) (g : NormElemAux ic (hom Y Z)) :
-  NormElemAux comp (hom X Z)
+  NormElemAux ic (hom X Z)
 | app {X Y : Obj Cat.Set} {s t : HeadSymbol} (hs : s ≠ ic)
   (f : NormElemAux s (hom X Y))
-  (x : NormElemAux t X) : NormElemAux app Y
+  (x : NormElemAux t X) : NormElemAux ma Y
 | map {C D : Cat} (v : Nat)
-  {X Y : Obj C} {s : HeadSymbol} (hs : s ≠ id) :
+  {X Y : Obj C} {s : HeadSymbol} (hs : s ≠ ic) :
   (f : NormElemAux s (hom X Y)) →
-  NormElemAux (map v) (hom ((Func.var C D v).app X) ((Func.var C D v).app Y))
+  NormElemAux ma (hom ((Func.var C D v).app X) ((Func.var C D v).app Y))
 | extend {C : Cat} (F : Func C Cat.Set) (h : Γ.isCorepr F) {X : Obj C} :
   NormElemAux veu ((hom (app F X) (hom (corepr F) X)))
 | unit {C : Cat} (F : Func C Cat.Set) (h : Γ.isCorepr F) :
@@ -219,7 +214,14 @@ def var (X : Obj Cat.Set) (v : Γ.elem X) : NormElem Γ X :=
 ⟨veu, NormElemAux.var v⟩
 
 def id (X : Obj C) : NormElem Γ (hom X X) :=
-⟨HeadSymbol.id, NormElemAux.id X⟩
+⟨_, NormElemAux.id X⟩
+
+def comp : {C : Cat} → {X Y Z : Obj C} →
+  (f : NormElem Γ (hom X Y)) →
+  (g : NormElem Γ (hom Y Z)) →
+  NormElem Γ (hom X Z)
+| _, _, _,
+
 
 -- noncomputable def compAux
 --   {A : Obj Cat.Set}

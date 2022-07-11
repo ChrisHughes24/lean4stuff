@@ -20,12 +20,12 @@ mutual
 def ObjContainsRAdj {C' D' : Cat} (L : Func C' D') : {C : Cat} → (X : Obj C) → Prop
 | _, Obj.var _ _     => False
 | _, Obj.varApp _ X  => ObjContainsRAdj L X
-| _, Obj.rAdjApp F X => FuncContainsRAdj L F ∨ ObjContainsRAdj L X
+| _, Obj.rAdjApp F X => FuncContainsRAdj L F ∨ ObjContainsRAdj L X ∨ HEq L F
 
 def FuncContainsRAdj {C' D' : Cat} (L : Func C' D') : {C D : Cat} → (F : Func C D) → Prop
 | _, _, Func.id _         => False
 | _, _, Func.compVar G v  => FuncContainsRAdj L G
-| _, _, Func.compRAdj G H => FuncContainsRAdj L G ∨ HEq L H
+| _, _, Func.compRAdj G H => FuncContainsRAdj L G ∨ FuncContainsRAdj L H ∨ HEq L H
 
 end
 
@@ -70,7 +70,6 @@ noncomputable def Obj.cases : {C : Cat} → (X Y : Obj C) → Σ D : Cat, Obj D 
 | C, X, rAdjApp F Y => cases (F.app X) Y
 | C, X,           Y => ⟨C, X, Y⟩
 
-
 theorem FuncAppContainsRAdj {C' D' : Cat} (G : Func C' D') :
   {C D : Cat} → (F : Func C D) → (X : Obj C) →
   ObjContainsRAdj G (F.app X) ↔ FuncContainsRAdj G F ∨ ObjContainsRAdj G X
@@ -83,6 +82,7 @@ trivial
 | _, _, (Func.compRAdj I H), X => by
 rw [Func.compRAdjApp, ObjContainsRAdj, FuncContainsRAdj, FuncAppContainsRAdj G I]
 sorry
+
 
 theorem ObjContainsRAdjCases1 : {C D E : Cat} → {X Y : Obj E} → {F : Func C D} →
   ObjContainsRAdj F (X.cases Y).2.1 → ObjContainsRAdj F X ∨ ObjContainsRAdj F Y
@@ -126,22 +126,15 @@ theorem ObjContainsRAdjCases2 : {C D E : Cat} → {X Y : Obj E} → {F : Func C 
   intros _ _ _ h
   injection h
 
-structure Context : Type 1 :=
-( HomVar {C : Cat} (X Y : Obj C) : Type )
-( hasRAdj {C D : Cat} (F : Func C D) : Bool )
-
-variable (Γ : Context)
-
 mutual
 
 inductive HomAux : {C : Cat} → (X Y : Obj C) → Type where
-| var {C : Cat} (X Y : Obj C) (v : Γ.HomVar X Y) : HomAux (X.cases Y).2.1 (X.cases Y).2.2
-| mapVar {C : Cat} (D : Cat) {X Y : Obj C} (v : Nat) (f : HomAux X Y) :
+| mapVar {C D : Cat} {X Y : Obj C} (v : Nat) (f : HomAux X Y) :
   HomAux ((Func.var C D v).app X) ((Func.var C D v).app Y)
 | mapRAdj {C D : Cat} {X Y : Obj C} (F : Func D C) (f : HomAux X Y) :
   HomAux (F.rAdj.app X) (F.rAdj.app Y)
-| restrict {C D : Cat} (F : Func C D)
-  {X : Obj C} {Y : Obj D} :
+| var {C : Cat} {X Y : Obj C} (v : Nat) : HomAux (X.cases Y).2.1 (X.cases Y).2.2
+| restrict {C D : Cat} (F : Func C D) {X : Obj C} {Y : Obj D} :
   Hom (F.app X) Y → HomAux X (Obj.rAdjApp F Y)
 | counit {C D : Cat} (F : Func C D) (X : Obj D) :
   HomAux (F.app (F.rAdj.app X)) X
@@ -152,36 +145,38 @@ inductive Hom : {C : Cat} → (X Y : Obj C) → Type where
 
 end
 
--- mutual
+mutual
 
--- def HomAuxContainsVar {C' : Cat} {A B : Obj C'} (v : Γ.HomVar A B) :
---   {C : Cat} → {X Y : Obj C} → HomAux Γ X Y → Prop
--- | _, _, _, HomAux.mapVar _ f         => HomAuxContainsVar v f
--- | _, _, _, HomAux.mapRAdj F f        => HomAuxContainsVar v f
--- | _, _, _, @HomAux.var _ D X' Y' w => HEq w v
--- | _, _, _, HomAux.restrict F f    => HomContainsVar v f
--- | _, _, _, HomAux.counit F X      => False
+noncomputable def HomAuxContainsVar {C' : Cat} (A B : Obj C') (v : Nat) :
+  {C : Cat} → {X Y : Obj C} → HomAux X Y → Prop
+| _, _, _, HomAux.mapVar _ f      => HomAuxContainsVar A B v f
+| _, _, _, HomAux.mapRAdj F f     => HomAuxContainsVar A B v f
+| _, _, _, HomAux.var w        => _
+| _, _, _, HomAux.restrict F f => HomContainsVar A B v f
+| _, _, _, HomAux.counit F X   => False
 
--- def HomContainsVar {C' : Cat} {A B : Obj C'} (v : Γ.HomVar A B) :
---   {C : Cat} → {X Y : Obj C} → Hom Γ X Y → Prop
--- | _, _, _, Hom.id _ => False
--- | _, _, _, Hom.comp' f g => HomAuxContainsVar v f ∨ HomContainsVar v g
+noncomputable def HomContainsVar {C' : Cat} (A B : Obj C') (v : Nat) :
+  {C : Cat} → {X Y : Obj C} → Hom X Y → Prop
+| _, _, _, Hom.id _ => False
+| _, _, _, Hom.comp' f g => HomAuxContainsVar A B v f ∨ HomContainsVar A B v g
 
--- end
+end
 
 mutual
 
-inductive HomAuxContainsVar {C' : Cat} {A B : Obj C'} (v : Γ.HomVar A B) :
-  {C : Cat} → {X Y : Obj C} → HomAux Γ X Y → Prop where
-| self : HomAuxContainsVar v (HomAux.var A B v)
-| mapRAdj : HomAuxContainsVar v f → HomAuxContainsVar v (HomAux.mapRAdj F f)
-| mapVar : HomAuxContainsVar v f → HomAuxContainsVar v (HomAux.mapVar D F f)
-| restrict : HomContainsVar v f → HomAuxContainsVar v (HomAux.restrict _ f)
+noncomputable def HomAuxContainsRAdj {C' D' : Cat} (F : Func C' D') :
+  {C : Cat} → {X Y : Obj C} → HomAux X Y → Prop
+| _, _, _, HomAux.mapVar _ f   => HomAuxContainsRAdj F f
+| _, _, _, HomAux.mapRAdj G f  => HomAuxContainsRAdj F f ∨ HEq F G
+  ∨ FuncContainsRAdj F G
+| _, _, _, @HomAux.var _ X Y w => ObjContainsRAdj F X ∨ ObjContainsRAdj F Y
+| _, _, _, HomAux.restrict G f => HomContainsRAdj F f ∨ HEq F G ∨ FuncContainsRAdj F G
+| _, _, _, HomAux.counit G X   => ObjContainsRAdj F X ∨ HEq F G ∨ FuncContainsRAdj F G
 
-inductive HomContainsVar {C' : Cat} {A B : Obj C'} (v : Γ.HomVar A B) :
-  {C : Cat} → {X Y : Obj C} → Hom Γ X Y → Prop where
-| compLeft : HomAuxContainsVar v f → HomContainsVar v (Hom.comp' f g)
-| compRight : HomContainsVar v g → HomContainsVar v (Hom.comp' f g)
+noncomputable def HomContainsRAdj {C' D' : Cat} (F : Func C' D') :
+  {C : Cat} → {X Y : Obj C} → Hom X Y → Prop
+| _, X, _, Hom.id _ => ObjContainsRAdj F X
+| _, _, _, Hom.comp' f g => HomAuxContainsRAdj F f ∨ HomContainsRAdj F g
 
 end
 
@@ -193,59 +188,59 @@ variable {C D : Cat}
 
 section defs
 
-def ofHomAux {X Y : Obj C} (f : HomAux Γ X Y) : Hom Γ X Y :=
+def ofHomAux {X Y : Obj C} (f : HomAux X Y) : Hom X Y :=
 Hom.comp' f (Hom.id _)
 
-noncomputable def var {X Y : Obj C} (v : Γ.HomVar X Y) : Hom Γ (X.cases Y).2.1 (X.cases Y).2.2 :=
-ofHomAux (HomAux.var _ _ v)
+noncomputable def var (X Y : Obj C) (v : Nat) : Hom (X.cases Y).2.1 (X.cases Y).2.2 :=
+ofHomAux (HomAux.var v)
 
 noncomputable def comp : {C : Cat} → {X Y Z : Obj C} →
-  Hom Γ X Y → Hom Γ Y Z → Hom Γ X Z
+  Hom X Y → Hom Y Z → Hom X Z
 | _, _, _, _, Hom.id _, g => g
 | _, _, _, _, Hom.comp' f g, h => Hom.comp' f (comp g h)
 
 noncomputable def mapAux : {C D : Cat} → (F : Func C D) → {X Y : Obj C} →
-  (f : HomAux Γ X Y) → HomAux Γ (F.app X) (F.app Y)
+  (f : HomAux X Y) → HomAux (F.app X) (F.app Y)
 | _, _, Func.id _,           _, _, f => f
-| _, _, (Func.compVar F v),  _, _, f => HomAux.mapVar _ v (mapAux F f)
+| _, _, (Func.compVar F v),  _, _, f => HomAux.mapVar v (mapAux F f)
 | _, _, (Func.compRAdj F G), _, _, f => HomAux.mapRAdj G (mapAux F f)
 
 noncomputable def map {C D : Cat} (F : Func C D) : {X Y : Obj C} →
-  (f : Hom Γ X Y) → Hom Γ (F.app X) (F.app Y)
+  (f : Hom X Y) → Hom (F.app X) (F.app Y)
 | _, _, Hom.id _ => Hom.id _
 | _, _, Hom.comp' f g => Hom.comp' (mapAux F f) (map F g)
 
-noncomputable def restrict {C D : Cat} (F : Func C D) (hF : Γ.hasRAdj F)
+noncomputable def restrict {C D : Cat} (F : Func C D)
   {X : Obj C} {Y : Obj D}
-  (f : Hom Γ (F.app X) Y) : Hom Γ X (Obj.rAdjApp F Y) :=
+  (f : Hom (F.app X) Y) : Hom X (Obj.rAdjApp F Y) :=
 ofHomAux (HomAux.restrict F f)
 
-noncomputable def counit {C D : Cat} (F : Func C D) (hF : Γ.hasRAdj F) (X : Obj D) :
-  Hom Γ (F.app (F.rAdj.app X)) X :=
+noncomputable def counit {C D : Cat} (F : Func C D) (X : Obj D) :
+  Hom (F.app (F.rAdj.app X)) X :=
 ofHomAux (HomAux.counit F X)
 
 end defs
 
 section lemmas
 
-theorem compId : {X Y : Obj C} → (f : Hom Γ X Y) → f.comp (Hom.id _) = f
+theorem compId : {X Y : Obj C} → (f : Hom X Y) → f.comp (Hom.id _) = f
 | _, _, (Hom.id _) => by rw [comp]
 | _, _, (Hom.comp' f g) => by rw [Hom.comp, compId g]
 
-theorem idComp {X Y : Obj C} (f : Hom Γ X Y) : (Hom.id _).comp f = f :=
+theorem idComp {X Y : Obj C} (f : Hom X Y) : (Hom.id _).comp f = f :=
 by rw [Hom.comp]
 
 theorem compAssoc : {W X Y Z : Obj C} →
-  (f : Hom Γ W X) → (g : Hom Γ X Y) → (h : Hom Γ Y Z) →
+  (f : Hom W X) → (g : Hom X Y) → (h : Hom Y Z) →
   (f.comp g).comp h = f.comp (g.comp h)
 | _, _, _, _, Hom.id _,      h, i => by rw [idComp, idComp]
 | _, _, _, _, Hom.comp' f g, h, i =>
 by rw [Hom.comp, Hom.comp, Hom.comp, compAssoc g]
 
-theorem mapId {X : Obj C} (F : Func C D) : map F (@Hom.id Γ C X) = Hom.id (F.app X) :=
+theorem mapId {X : Obj C} (F : Func C D) : map F (@Hom.id C X) = Hom.id (F.app X) :=
 by rw [Hom.map]
 
-theorem mapComp (F : Func C D) : {X Y Z : Obj C} → (f : Hom Γ X Y) → (g : Hom Γ Y Z) →
+theorem mapComp (F : Func C D) : {X Y Z : Obj C} → (f : Hom X Y) → (g : Hom Y Z) →
   map F (f.comp g) = (map F f).comp (map F g)
 | _, _, _, Hom.id _,      g => by rw [idComp, mapId, idComp]
 | _, _, _, Hom.comp' f g, h => by rw [comp, map, map, mapComp F g, comp]
@@ -253,84 +248,102 @@ theorem mapComp (F : Func C D) : {X Y Z : Obj C} → (f : Hom Γ X Y) → (g : H
 end lemmas
 
 /- Now the other normalisation stuff.
-  -- Suppose we have f : X → Y where X and Y are Objects of C.
+  -- Suppose we have f : X → Y where X and Y are Objects of C and the context is cased.
   -- If Y is rAdj, then f must be restrict to be almostNormal
   -- If Y is not rAdj then f is almostNormal if every rAdj functor contained in
-    f is contained in a variable in F or X or Y.
+    f is contained in the domain of a variable in f or cases of the codomain.
   -- A term is normal if every subterm (define properly) is almostNormal
  -/
 
 end Hom
 
-mutual
+structure Context : Type :=
+( HomVar {C : Cat} (X Y : Obj C) : Nat → Prop )
+( hasRAdj {C D : Cat} (F : Func C D) : Prop )
+-- ( h : ∀ {C : Cat} (X Y : Obj C) (v : Nat),
+--     HomVar X Y v → ∀ {C' D' : Cat} (F : Func C' D'),
+--     ObjContainsRAdj F X ∨ ObjContainsRAdj F Y →
+--     hasRAdj F )
 
-noncomputable def changeVarsAux (Γ₁ Γ₂ : Context)
-  (h : ∀ {C D : Cat} (F : Func C D), Γ₁.hasRAdj F → Γ₂.hasRAdj F)
-  (i : {C : Cat} → {X Y : Obj C} → Γ₁.HomVar X Y → Γ₂.HomVar X Y) :
-  {C : Cat} → {X Y : Obj C} → HomAux Γ₁ X Y → HomAux Γ₂ X Y
-| _, _, _, HomAux.mapVar _ v f => HomAux.mapVar _ v (changeVarsAux Γ₁ Γ₂ h i f)
-| _, _, _, HomAux.mapRAdj F f => HomAux.mapRAdj F (changeVarsAux Γ₁ Γ₂ h i f)
-| _, _, _, HomAux.var _ _ f => HomAux.var _ _ (i f)
-| _, _, _, HomAux.restrict F f => HomAux.restrict F (changeVars Γ₁ Γ₂ h i f)
-| _, _, _, HomAux.counit F X => HomAux.counit F X
+def SmallestContext {C : Cat} {X Y : Obj C} (f : Hom X Y) : Context :=
+{ HomVar  := λ X Y n => HomContainsVar X Y n f,
+  hasRAdj := λ F     => HomContainsRAdj F f }
 
-noncomputable def changeVars (Γ₁ Γ₂ : Context)
-  (h : ∀ {C D : Cat} (F : Func C D), Γ₁.hasRAdj F → Γ₂.hasRAdj F)
-  (i : {C : Cat} → {X Y : Obj C} → Γ₁.HomVar X Y → Γ₂.HomVar X Y) :
-  {C : Cat} → {X Y : Obj C} → Hom Γ₁ X Y → Hom Γ₂ X Y
-| _, _, _, Hom.id _ => Hom.id _
-| _, _, _, Hom.comp' f g => Hom.comp' (changeVarsAux Γ₁ Γ₂ h i f) (changeVars Γ₁ Γ₂ h i g)
+def lessRAdj (Γ₁ Γ₂ : Context) : Prop :=
+@Context.HomVar Γ₁ = @Context.HomVar Γ₂ ∧
+  ∀ {C D : Cat} (F : Func C D), Γ₁.hasRAdj F → Γ₂.hasRAdj F
 
-end
+variable (Γ : Context)
 
-mutual
+def ObjC (C : Cat) : Type :=
+Σ' X : Obj C, ∀ (C' D' : Cat) (F : Func C' D'), ObjContainsRAdj F X → Γ.hasRAdj F
 
-noncomputable def changeVarsAux2 (Γ₁ Γ₂ : Context) :
-  {C : Cat} → {X Y : Obj C} → (f : HomAux Γ₁ X Y) →
-  (h : ∀ {C D : Cat} (F : Func C D), Γ₁.hasRAdj F → Γ₂.hasRAdj F) →
-  (i : {C : Cat} → {X Y : Obj C} → (v : Γ₁.HomVar X Y) →
-    HomAuxContainsVar Γ₁ v f → Γ₂.HomVar X Y)  → HomAux Γ₂ X Y
-| _, _, _, HomAux.mapVar _ v f, h, i =>
-    HomAux.mapVar _ v (changeVarsAux2 Γ₁ Γ₂ f h
-      (by
-        intros C X Y v hv
-        apply i
-        constructor
-        assumption ))
-| _, _, _, HomAux.mapRAdj F f, h, i => HomAux.mapRAdj F (changeVarsAux2 Γ₁ Γ₂ f h
-   (by
-        intros C X Y v hv
-        have := i v
-        apply this
-        constructor
-        assumption ))
-| _, _, _, HomAux.var _ _ v, h, i => HomAux.var _ _ (i v (by constructor))
-| _, _, _, HomAux.restrict F f, h, i => HomAux.restrict F (changeVars2 Γ₁ Γ₂ f h
-  (by
-    intros
-    apply i
-    constructor
-    assumption ))
-| _, _, _, HomAux.counit F X, h, i => HomAux.counit F X
+def FuncC (C D : Cat) : Type :=
+Σ' F : Func C D, ∀ (C' D' : Cat) (G : Func C' D'), FuncContainsRAdj G F → Γ.hasRAdj G
 
-noncomputable def changeVars2 (Γ₁ Γ₂ : Context) :
-  {C : Cat} → {X Y : Obj C} → (f : Hom Γ₁ X Y) →
-  (h : ∀ {C D : Cat} (F : Func C D), Γ₁.hasRAdj F → Γ₂.hasRAdj F) →
-  (i : {C : Cat} → {X Y : Obj C} → (v : Γ₁.HomVar X Y) →
-    HomContainsVar Γ₁ v f → Γ₂.HomVar X Y) → Hom Γ₂ X Y
-| _, _, _, Hom.id _, _, _ => Hom.id _
-| _, _, _, Hom.comp' f g, h, i =>
-  Hom.comp' (changeVarsAux2 Γ₁ Γ₂ f h
-    (by
-      intros
-      apply i
-      constructor
-      assumption))
-    (changeVars2 Γ₁ Γ₂ g h
-      (by
-        intros C X Y v hv
-        apply i v
-        apply HomContainsVar.compRight
-        assumption ))
+def HomC {C : Cat} (X Y : ObjC Γ C) : Type :=
+Σ' f : Hom X.1 Y.1,
+  (∀ (C' D' : Cat) (F : Func C' D'), HomContainsRAdj F f → Γ.hasRAdj F) ∧
+  ∀ (C' : Cat) (X' Y' : ObjC Γ C') (v : Nat), HomContainsVar X'.1 Y'.1 v f →
+    Γ.HomVar X'.1 Y'.1 v
 
-end
+variable {Γ}
+
+noncomputable def ObjC.cases {C : Cat} (X Y : ObjC Γ C) : Σ D : Cat, ObjC Γ D × ObjC Γ D :=
+let B := Obj.cases X.1 Y.1
+⟨B.1, ⟨B.2.1,
+  by
+  intros C' D' F h
+  have := ObjContainsRAdjCases1 h
+  cases this
+  apply X.2
+  assumption
+  apply Y.2
+  assumption⟩,
+  ⟨B.2.2,
+  by
+  intros C' D' F h
+  have := ObjContainsRAdjCases2 h
+  cases this
+  apply X.2
+  assumption
+  apply Y.2
+  assumption⟩⟩
+
+noncomputable def FuncC.app {C D : Cat} (F : FuncC Γ C D) (X : ObjC Γ C) : ObjC Γ D :=
+⟨F.1.app X.1, sorry⟩
+
+namespace HomC
+
+noncomputable def var (X Y : ObjC Γ C) (v : Nat) (h : Γ.HomVar X.1 Y.1 v) :
+  HomC Γ (X.cases Y).2.1 (X.cases Y).2.2 :=
+⟨Hom.var X.1 Y.1 v, by
+  apply And.intro
+  intros C' D' F h2
+  rw [Hom.var, Hom.ofHomAux, HomContainsRAdj, HomContainsRAdj] at h2
+  sorry
+  intros C' X' Y' w h2
+  rw [Hom.var, Hom.ofHomAux, HomContainsVar] at h2
+  sorry ⟩
+
+noncomputable def id {C : Cat} (X : ObjC Γ C) : HomC Γ X X :=
+⟨Hom.id X.1, sorry⟩
+
+noncomputable def comp {C : Cat} {X Y Z : ObjC Γ C} :
+  HomC Γ X Y → HomC Γ Y Z → HomC Γ X Z :=
+λ f g => ⟨Hom.comp f.1 g.1, sorry⟩
+
+noncomputable def map {C D : Cat} (F : FuncC Γ C D) {X Y : ObjC Γ C}
+  (f : HomC Γ X Y) : HomC Γ (F.app X) (F.app Y) :=
+⟨Hom.map F.1 f.1, sorry⟩
+
+noncomputable def restrict {C D : Cat} (F : FuncC Γ C D)
+  {X : ObjC Γ C} {Y : ObjC Γ D}
+  (f : Hom (F.app X) Y) : Hom X (Obj.rAdjApp F Y) :=
+ofHomAux (HomAux.restrict F f)
+
+noncomputable def counit {C D : Cat} (F : Func C D) (X : Obj D) :
+  Hom (F.app (F.rAdj.app X)) X :=
+ofHomAux (HomAux.counit F X)
+
+end HomC
