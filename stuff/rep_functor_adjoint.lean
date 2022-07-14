@@ -334,3 +334,8 @@ noncomputable def changeVars2 (Γ₁ Γ₂ : Context) :
         assumption ))
 
 end
+
+noncomputable def toPresheaf (Γ₁ Γ₂ : Context)
+  (h : ∀ {C D : Cat} (F : Func C D), Γ₁.hasRAdj F → Γ₂.hasRAdj F)
+  (i : {C : Cat} → {X Y : Obj C} → Γ₁.HomVar X Y → Γ₂.HomVar X Y)
+  {C : Cat} {X Y : Obj C} (f : Hom X Y) :
