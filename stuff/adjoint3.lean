@@ -70,56 +70,58 @@ noncomputable def ObjAux.cases : {C : Cat} → {bX bY : ObjKind} →
 noncomputable def Obj.cases {C : Cat} (X Y : Obj C) : Σ D : Cat, Obj D × ObjAux other D :=
 ObjAux.cases X.2 Y.2
 
-structure HomData : Type :=
-( isVarApp : Option (Cat × Nat) )
-( isCounit : Option (Σ (C D : Cat), Func C D) )
+inductive RAdjStack : (C D : Cat) → Type
+| single : {C D : Cat} → Func D C → RAdjStack C D
+| app : {C D E : Cat} → Func E D → RAdjStack C D → RAdjStack C E
 
-inductive rAdjChain : (C D : Cat) → Type
-| single : {C D : Cat} → Func C D → rAdjChain D C
-|
+noncomputable def RAdjStack.toRAdjFunc : {C D : Cat} → (F : RAdjStack C D) → Func C D
+| _, _, single F => F.rAdj
+| _, _, app F G => (toRAdjFunc G).comp F.rAdj
+
+noncomputable def RAdjStack.toFunc : {C D : Cat} → (F : RAdjStack C D) → Func D C
+| _, _, single F => F
+| _, _, app F G => F.comp (toFunc G)
+
+structure HomData : Type :=
+( isVarApp : Option (Cat × Nat) ) --Left
+( isCounit : Option (Σ C D : Cat, Func C D) ) --Right
+( isRestrict : Bool ) -- Right
+( isComp : Bool )
+( isId : Bool )
 
 mutual
 
 inductive HomAux₁ : {C : Cat} → (X Y : Obj C) → HomData → Type where
 | mapVar {C D : Cat} {X Y : Obj C} {o : HomData} (v : Nat) (f : HomComp X Y o) :
-  HomAux₁ ((Func.var C D v).app X) ((Func.var C D v).app Y) ⟨some (C, v), none⟩
+  HomAux₁ ((Func.var C D v).app X) ((Func.var C D v).app Y) ⟨some (C, v), none, false⟩
 | varCases {C : Cat} (X Y : Obj C) (v : Nat) :
-  HomAux₁ (X.cases Y).2.1 ⟨other, (X.cases Y).2.2⟩ ⟨none, none⟩
+  HomAux₁ (X.cases Y).2.1 ⟨other, (X.cases Y).2.2⟩ ⟨none, none, false⟩
 | counit {C D : Cat} (F : Func C D) (X : ObjAux other D) :
-  HomAux₁ (F.app (F.rAdj.app ⟨_, X⟩)) ⟨_, X⟩
-  ⟨none, some ⟨_, _, F⟩⟩
-| restrict {C D : Cat} (F : Func C D) {X : Obj C} {Y : Obj D} {o : HomData} :
-  HomAux (F.app X) Y o → HomAux₁ X ⟨_, ObjAux.rAdjApp F Y.2⟩ ⟨none, none⟩
-
--- Need to think a lot about composition of Adjoints.
+  HomAux₁ (F.app (F.rAdj.app ⟨_, X⟩)) ⟨_, X⟩ ⟨none, some ⟨_, _, F⟩, false⟩
+| restrict {C D : Cat} (F : Func C D) {X : Obj C} {Y : Obj D} {o : HomData}
+  (ho : o.isCounit ≠ some ⟨_, _, F⟩) :
+  HomAux (F.app X) Y o → HomAux₁ X ⟨_, ObjAux.rAdjApp F Y.2⟩ ⟨none, none, true⟩
 
 inductive HomComp : {C : Cat} → (X Y : Obj C) → HomData → Type where
 | ofHom₁ {C : Cat} {X Y : Obj C} {o : HomData} : HomAux₁ X Y o → HomComp X Y o
-| comp' {C : Cat} {X Y : Obj C} {Z : ObjAux other C} {o₁ o₂ : HomData}
+| comp' {C : Cat} {X Y Z : Obj C} {o₁ o₂ : HomData}
   (h : o₁.isVarApp ≠ o₂.isVarApp ∨ o₁.isVarApp = none)
-  (f : HomAux₁ X Y o₁) (g : HomComp Y ⟨_, Z⟩ o₂) : HomComp X ⟨_, Z⟩ o₁
+  (f : HomAux₁ X Y o₁) (g : HomComp Y Z o₂) : HomComp X Z
+  ⟨o₁.isVarApp, o₂.isCounit, o₂.isRestrict⟩
 
 inductive HomAux : {C : Cat} → (X Y : Obj C) → HomData → Type where
 | ofComp {C : Cat} {X Y : Obj C} {o : HomData} : HomComp X Y o → HomAux X Y o
-| id {C : Cat} (X : ObjAux other C) : HomAux ⟨_, X⟩ ⟨_, X⟩ ⟨none, none⟩
+| id {C : Cat} (X : ObjAux other C) : HomAux ⟨_, X⟩ ⟨_, X⟩ ⟨none, none, false⟩
 
 end
 
-def Hom₁.isMapVar : (C D : Cat) → (v : Nat) → {X Y : Obj D} → Hom₁ X Y → Prop
-| C, _, w, _, _, @Hom₁.mapVar C' _ _ _ v _ => C = C' ∧ w = v
-| _, _, _, _, _, Hom₁.varCases _ _ _  => False
-| _, _, _, _, _, Hom₁.counit _ _ => False
-| _, _, _, _, _, Hom₁.restrict _ _ => False
-
-def HomComp.headIsMapVar (C D : Cat) (v : Nat) : {X Y : Obj D} → HomComp X Y → Prop
-| _, _, ofHom₁ f => Hom₁.isMapVar C D v f
-| _, _, comp' f g => Hom₁.isMapVar C D v f
-
-def HomComp.comp : {C : Cat} → {X Y Z : Obj C} →
-  HomComp X Y → HomComp Y Z → HomComp X Z
-| _, _, _, _, HomComp.id _, g => g
-| _, _, _, _, HomComp.comp' f g hfg, HomComp.id _ => HomComp.comp' f g hfg
-| _, _, _, _, HomComp.comp' f g hfg, HomComp.comp' h i hhi =>
+def HomComp.comp : {C : Cat} → {X Y Z : Obj C} → {o₁ o₂ : HomData} →
+  HomComp X Y o₁ → HomComp Y Z o₂ → Σ o₃ : HomData, HomAux X Z o₃
+| _, _, _, _, _, _,
+  HomComp.ofHom₁ (HomAux₁.mapVar v f),
+  g => ⟨g, o₂⟩
+| _, _, _, _, _, _, HomComp.comp' f g hfg, HomComp.id _ => HomComp.comp' f g hfg
+| _, _, _, _, _, _, HomComp.comp' f g hfg, HomComp.comp' h i hhi =>
   HomComp.comp' f (comp g (HomComp.comp' h i hhi)) _
 
 namespace Hom
