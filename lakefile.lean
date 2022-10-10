@@ -1,6 +1,15 @@
 import Lake
 open Lake DSL
 
-package lean4stuff {
-  -- add configuration options here
+package «Stuff»
+
+lean_lib Stuff
+
+
+@[defaultTarget]
+lean_exe «stuf» {
+  root := `Stuff
+  supportInterpreter := true
 }
+
+
