@@ -102,6 +102,32 @@ instance [DecidableEq C]
 λ f g : syn2' X Y =>
 @decidable_of_decidable_of_iff (syn2'BEq f g = true) _ _ thing
 
+instance thing2 [DecidableEq C]
+  [(X Y : C) → DecidableEq (X ⟶ Y)] :
+  {X Y : prod_coprod C} → DecidableEq (syn2 X Y)
+| _, _, syn2.of' f, syn2.of' g =>
+  decidable_of_decidable_of_iff
+    (show f = g ↔ syn2.of' f = syn2.of' g by
+      apply Iff.intro
+      { intro h; rw [h] }
+      { intro h; injection h; assumption })
+| _, _, syn2.comp' _ _, syn2.of' _ => isFalse (λ h => by injection h)
+| _, _, syn2.of' _, syn2.comp' _ _ => isFalse (λ h => by injection h)
+| _, _, @syn2.comp' _ _ _ Y _ f₁ f₂, @syn2.comp' _ _ _ Y' _ g₁ g₂ =>
+  if hy : Y = Y'
+    then by
+      subst hy
+      exact if h₂ : f₂ = g₂
+        then by
+          subst h₂
+          exact @decidable_of_decidable_of_iff _ _ (thing2 _ _)
+            (show f₁ = g₁ ↔ syn2.comp' f₁ f₂ = syn2.comp' g₁ f₂ by
+              apply Iff.intro
+              { intro h; rw [h] }
+              { intro h; injection h; assumption })
+        else isFalse (λ h => by injection h; contradiction)
+    else isFalse (λ h => by injection h; contradiction)
+
 end decEq
 
 namespace syn2
@@ -243,4 +269,25 @@ unsafe def normalize [DecidableEq C]
   {X Y : prod_coprod C} (s : syn2 X Y) : syn2 X Y :=
 (normalize_ce (cutelim s)).1
 
+def of_syn : {X Y : prod_coprod C} → (f : syn X Y) → syn2 X Y
+| _, _, syn.of_cat f => syn2.of' (syn2'.of_cat f)
+| _, _, syn.comp f g => comp (of_syn f) (of_syn g)
+| _, _, syn.id _ => syn2.of' (syn2'.id _)
+| _, _, syn.inr => syn2.inr
+| _, _, syn.inl => syn2.inl
+| _, _, syn.fst => syn2.fst
+| _, _, syn.snd => syn2.snd
+| _, _, syn.bot_mk _ => syn2.bot_mk _
+| _, _, syn.top_mk _ => syn2.top_mk _
+| _, _, syn.coprod_mk f g => syn2.coprod_mk (of_syn f) (of_syn g)
+| _, _, syn.prod_mk f g => syn2.prod_mk (of_syn f) (of_syn g)
+
 end syn2
+
+namespace syn
+
+unsafe def beq [DecidableEq C] [(X Y : C) → DecidableEq (X ⟶ Y)]
+  {X Y : prod_coprod C} (f g : syn X Y) : Bool :=
+decide (syn2.normalize (syn2.of_syn f) = syn2.normalize (syn2.of_syn g))
+
+end syn

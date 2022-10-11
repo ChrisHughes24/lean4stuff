@@ -30,6 +30,24 @@ inductive Term : {n : Nat} → (Γ : Context Typ n) → LTyp Typ → Type
 | app {n : Nat} {Γ : Context Typ n} {t u : LTyp Typ}
   (e : Term Γ (t.arrow u)) (x : Term Γ t) : Term Γ u
 
+def assign_last_var : {n : Nat} → {Γ : Context Typ n} → {t u : LTyp Typ} →
+  (e : Term Const (Γ.cons t) u) → (x : Term Const Γ t) → Term Const Γ u
+| _, _, _, _, Term.app e x, y =>
+  Term.app (assign_last_var e y) (assign_last_var x y)
+| n, Γ, t, _, @Term.lambda _ _ _ _ u v e, x =>
+  have := assign_last_var e
+  Term.lambda _
+| _, _, _, _, _, _ => sorry
+
+def assign_var : {n : Nat} → {Γ : Context Typ n} → {t : LTyp Typ} →
+  (e : Term Const Γ t) → {i : Fin2 n} → (x : Term Const Γ (Γ.nth i)) → Term Const Γ u
+| _, _, _, _, Term.app e x, y =>
+  Term.app (assign_last_var e y) (assign_last_var x y)
+| n, Γ, t, _, @Term.lambda _ _ _ _ u v e, x =>
+  have := assign_last_var e
+  Term.lambda _
+| _, _, _, _, _, _ => sorry
+
 def beta_reduce : {n : Nat} → {Γ : Context Typ n} → {t : LTyp Typ} →
   (e : Term Γ t) →
 
