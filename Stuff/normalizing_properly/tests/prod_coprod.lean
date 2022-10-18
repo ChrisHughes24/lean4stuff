@@ -81,6 +81,32 @@ def op : {X Y : prod_coprod free_cat} → syn X Y → syn (opObj Y) (opObj X)
 unsafe def bopeq {X Y : prod_coprod free_cat} (f g : syn X Y) : Bool :=
 f.beq g && (op f).beq (op g)
 
+unsafe def free_cat.hom.toString : {X Y : free_cat} → (X ⟶ Y) → String
+| _, _, free_cat.hom.id _ => ""
+| _, _, free_cat.hom.comp' _ _ _ (free_cat.hom.id _) f => f
+| _, _, free_cat.hom.comp' _ _ _ f g => free_cat.hom.toString f ++ ";" ++ g
+
+
+mutual
+
+unsafe def toString' : {X Y : prod_coprod free_cat} → syn2' X Y → String
+| _, _, syn2'.of_cat f => free_cat.hom.toString f
+| _, _, syn2'.prod_mk f g => "prod (" ++ toString f ++ ", " ++ toString g ++ ")"
+| _, _, syn2'.coprod_mk f g => "coprod (" ++ toString f ++ ", " ++ toString g ++ ")"
+| _, _, syn2'.comp_inl f => "comp_inl (" ++ toString f ++ ")"
+| _, _, syn2'.comp_inr f => "comp_inr (" ++ toString f ++ ")"
+| _, _, syn2'.fst_comp f => "fst_comp (" ++ toString f ++ ")"
+| _, _, syn2'.snd_comp f => "snd_comp (" ++ toString f ++ ")"
+| _, _, syn2'.top_mk _ => "top_mk"
+| _, _, syn2'.bot_mk _ => "bot_mk"
+
+
+unsafe def toString : {X Y : prod_coprod free_cat} → syn2 X Y → String
+| _, _, syn2.of' f => toString' f
+| _, _, syn2.comp' f g => toString f ++ ";;" ++ toString' g
+
+end
+
 #eval bopeq
   ((prod_mk uv uw).comp fst)
   uv
@@ -102,8 +128,8 @@ f.beq g && (op f).beq (op g)
 
 #eval bopeq
   (comp ((coprod_mk vu xu).comp ((prod_mk uv uw).comp (prod_mk (fst.comp vw) (snd.comp ww)))) (@inr _ _ X _))
-  (comp (coprod_mk (comp (prod_mk (vu.comp (uv.comp vw)) ((vu.comp uw).comp ww)) inr)
-            (comp (prod_mk (xu.comp (uv.comp vw)) ((xu.comp uw).comp ww)) inr)) (syn.id _))
+  (coprod_mk (comp (prod_mk (vu.comp (uv.comp vw)) ((vu.comp uw).comp ww)) inr)
+            (comp (prod_mk (xu.comp (uv.comp vw)) ((xu.comp uw).comp ww)) inr))
 
 #eval
   let p : syn top (coprod top X) := inl
