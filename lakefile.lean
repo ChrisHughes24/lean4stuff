@@ -1,15 +1,17 @@
 import Lake
 open Lake DSL
 
-package «Stuff»
-
-lean_lib Stuff
-
-
-@[defaultTarget]
-lean_exe «stuf» {
-  root := `Stuff
-  supportInterpreter := true
+package stuff {
+  -- add package configuration options here
 }
 
+lean_lib Stuff {
+  -- add library configuration options here
+}
 
+@[default_target]
+lean_exe stuff {
+  root := `Main
+}
+
+require «mathlib» from git  "https://github.com/leanprover-community/mathlib4" @ "f64a355"

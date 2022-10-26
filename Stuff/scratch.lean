@@ -1,20 +1,50 @@
+inductive unit (p : Prop) : Type
+| intro : unit p
+deriving DecidableEq
 
-inductive A :=
-| a : A
+section
 
-inductive B : A → Type where
-| hom {C : A} (X : B C) : B A.a
+variable {A B C  : Type}
 
-inductive C : A → Type where
-| id (a : A) : C a
+def ProdFun (f : A → B) (g : A → C) : A → (B × C) := λ a => (f a, g a)
 
-axiom Func.app (a b : A) (F : C a) : (X : B a) → B b
+example (f : C → A × B) (a : C) : f a = ((f a).1, (f a).2) := rfl
 
-def Func.var {a : A} (v : Nat) : C a :=
-C.id
+theorem ProdFunFst (f : A → B) (g : A → C) : Prod.fst ∘ ProdFun f g = f := rfl
 
-open B C
+theorem ProdFunSnd (f : A → B) (g : A → C) : Prod.snd ∘ ProdFun f g = g := rfl
 
-inductive T : B A.a → Type
-| mk {a: A} {X : B a} (f : T (hom X)) :
-  T (hom (Func.app a _ C.id X))
+theorem ProdFunEta (f : A → B × C) :
+  f = ProdFun (Prod.fst ∘ f) (Prod.snd ∘ f) := rfl
+
+
+theorem sumEta (Y : (A ⊕ B) → Type) (f : (a : A ⊕ B) → Y a) :
+  f = λ a => match a with
+  | Sum.inl a => f (Sum.inl a)
+  | Sum.inr b => f (Sum.inr b) :=
+  by
+    funext a
+    cases a
+    rfl
+    rfl
+
+end
+
+
+
+variable {A : Type} {B : A → Type} {C : Type}
+
+def SigmaFun (f : (a : A) → B a → C) : (Σ a, B a) → C :=
+λ a => f a.1 a.2
+
+def SigmaFunIn (f : (a : A) → B a → C) (a : A) (b : B a) : SigmaFun f ⟨a, b⟩ = f a b := rfl
+
+theorem SigmaFunEta (f : (Σ a, B a) → C) :
+  f = SigmaFun (λ a b => f ⟨a, b⟩) := rfl
+
+def PiFun (f : (a : A) → C → B a) : C → (a : A) → B a := λ c a => f a c
+
+def PiFunIn (f : (a : A) → C → B a) (c : C) (a : A) : PiFun f c a = f a c := rfl
+
+theorem PiFunEta (f : C → (a : A) → B a) :
+  f = PiFun (λ a c => f c a) := rfl
