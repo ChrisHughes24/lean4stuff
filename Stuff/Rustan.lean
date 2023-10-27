@@ -84,7 +84,33 @@ def E.normalize (va : AList (fun v : ℕ => Bool)) :
       have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize (va.insert v true) t
       have ⟨e', he₁, he₂, he₃⟩ := E.normalize (va.insert v false) e
       if hte' : t' = e'
-      then sorry
+      then by
+        subst hte'
+        refine ⟨t', ht₁, ?_, ?_⟩
+        · intro f
+          cases hfv : f v
+          · simp only [he₂, Option.elim, ne_eq, eval, h, hfv, cond_false]
+            congr
+            ext w
+            by_cases hwv : w = v
+            · subst w
+              simp [hfv, h]
+            · simp [hwv]
+          · simp only [ht₂, Option.elim, ne_eq, eval, h, hfv, cond_false]
+            congr
+            ext w
+            by_cases hwv : w = v
+            · subst w
+              simp [hfv, h]
+            · simp [hwv]
+        · intro w b
+          by_cases hwv : w = v
+          · subst v
+            simp [h]
+          · have := ht₃ w b
+            have := he₃ w b
+            aesop
+
       else ⟨.ite (var v) t' e', by
         suffices : v ∉ vars t' ∧ v ∉ vars e'
         · aesop
@@ -94,7 +120,9 @@ def E.normalize (va : AList (fun v : ℕ => Bool)) :
           simp at this
         · intro h
           have := he₃ v false h
-          simp at this, by
+          simp at this,
+
+        by
         intro f
         simp [he₂, ht₂, ht₁]
         cases hfv : f v
@@ -111,7 +139,9 @@ def E.normalize (va : AList (fun v : ℕ => Bool)) :
           by_cases hwv : w = v
           · subst w
             simp [hfv, h]
-          · simp [hwv], by
+          · simp [hwv],
+
+        by
         simp only [vars, List.mem_append, List.mem_singleton]
         intro w b
         by_cases hwv : w = v
