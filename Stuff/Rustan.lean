@@ -53,6 +53,9 @@ theorem eval_ite_eq_eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
   simp only [eval]
   cases eval f a <;> simp [eval]
 
+attribute [simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
+  disjoint vars List.disjoint
+
 /-- Normalizes the expression at the same time as assign all variables in
 `va` to the literal boolean given by `va` -/
 def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
@@ -60,35 +63,22 @@ def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
         (∀ f, e'.eval f = e.eval
           (fun w => (va.find? w).elim (f w) (fun b => b))) ∧
         ∀ (v : ℕ) (b : Bool), v ∈ vars e' → va.find? v ≠ some b }
-  | lit b => ⟨lit b, by simp [eval, normalized, hasNestedIf, hasConstantIf, disjoint,
-      List.disjoint, hasRedundantIf, vars]⟩
+  | lit b => ⟨lit b, by simp⟩
   | var v =>
     match h : va.find? v with
     | none =>
-      ⟨var v, by simp (config := {contextual := true})
-         [eval, normalized, hasNestedIf, hasConstantIf, disjoint,
-           List.disjoint, hasRedundantIf, h, vars]⟩
+      ⟨var v, by aesop⟩
     | some b =>
-      ⟨lit b, by simp (config := {contextual := true})
-         [eval, normalized, hasNestedIf, hasConstantIf, disjoint,
-           List.disjoint, hasRedundantIf, h, vars]⟩
+      ⟨lit b, by aesop⟩
   | .ite (lit true) t e =>
     have ⟨t', ht'⟩ := E.normalize va t
-    ⟨t', by
-      simp [disjoint, vars, eval, List.subset_def,
-        List.disjoint, hasNestedIf, hasConstantIf, hasRedundantIf] at *
-      tauto⟩
+    ⟨t', by aesop⟩
   | .ite (lit false) t e =>
     have ⟨e', he'⟩ := E.normalize va e
-    ⟨e', by
-      simp [disjoint, vars, eval, List.subset_def,
-        List.disjoint, hasNestedIf, hasConstantIf, hasRedundantIf] at *
-      tauto⟩
+    ⟨e', by aesop⟩
   | .ite (.ite a b c) d e =>
     have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize va (.ite a (.ite b d e) (.ite c d e))
-    ⟨t', ht₁, by
-      intro f
-      rw [ht₂, eval_ite_eq_eval_ite_ite], ht₃⟩
+    ⟨t', ht₁, fun f => by rw [ht₂, eval_ite_eq_eval_ite_ite], ht₃⟩
   | .ite (var v) t e =>
     match h : va.find? v with
     | none =>
