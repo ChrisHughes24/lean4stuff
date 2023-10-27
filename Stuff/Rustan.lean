@@ -1,4 +1,5 @@
 import Mathlib.Tactic
+import Mathlib.Data.List.AList
 
 inductive E
 | lit : Bool → E
@@ -58,14 +59,14 @@ attribute [simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
 
 /-- Normalizes the expression at the same time as assign all variables in
 `va` to the literal boolean given by `va` -/
-def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
+def E.normalize (va : AList (fun v : ℕ => Bool)) :
     (e : E) → { e' : E // e'.normalized ∧
         (∀ f, e'.eval f = e.eval
-          (fun w => (va.find? w).elim (f w) (fun b => b))) ∧
-        ∀ (v : ℕ) (b : Bool), v ∈ vars e' → va.find? v ≠ some b }
+          (fun w => (va.lookup w).elim (f w) (fun b => b))) ∧
+        ∀ (v : ℕ) (b : Bool), v ∈ vars e' → va.lookup v ≠ some b }
   | lit b => ⟨lit b, by simp⟩
   | var v =>
-    match h : va.find? v with
+    match h : va.lookup v with
     | none => ⟨var v, by aesop⟩
     | some b => ⟨lit b, by aesop⟩
   | .ite (lit true) t e =>
@@ -78,7 +79,7 @@ def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
     have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize va (.ite a (.ite b d e) (.ite c d e))
     ⟨t', ht₁, fun f => by rw [ht₂, eval_ite_eq_eval_ite_ite], ht₃⟩
   | .ite (var v) t e =>
-    match h : va.find? v with
+    match h : va.lookup v with
     | none =>
       have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize (va.insert v true) t
       have ⟨e', he₁, he₂, he₃⟩ := E.normalize (va.insert v false) e
@@ -86,19 +87,39 @@ def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
       then sorry
       else ⟨.ite (var v) t' e', by
         suffices : v ∉ vars t' ∧ v ∉ vars e'
-        · simp [disjoint, vars, eval, List.subset_def, normalized,
-            List.disjoint, hasNestedIf, hasConstantIf, hasRedundantIf] at *
-          simp_all
+        · aesop
         refine ⟨?_, ?_⟩
         · intro h
           have := ht₃ v true h
           simp at this
-          sorry
         · intro h
           have := he₃ v false h
-          simp at this
-          sorry, by
-        admit, sorry⟩
+          simp at this, by
+        intro f
+        simp [he₂, ht₂, ht₁]
+        cases hfv : f v
+        · simp only [ne_eq, cond_false, h]
+          congr
+          ext w
+          by_cases hwv : w = v
+          · subst w
+            simp [hfv, h]
+          · simp [hwv]
+        · simp only [ne_eq, cond_true, h]
+          congr
+          ext w
+          by_cases hwv : w = v
+          · subst w
+            simp [hfv, h]
+          · simp [hwv], by
+        simp only [vars, List.mem_append, List.mem_singleton]
+        intro w b
+        by_cases hwv : w = v
+        · subst v
+          simp [h]
+        · have := ht₃ w b
+          have := he₃ w b
+          aesop⟩
     | some true =>
       have ⟨t', ht'⟩ := E.normalize va t
       ⟨t', by aesop⟩
