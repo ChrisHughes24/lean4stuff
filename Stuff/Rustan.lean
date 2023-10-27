@@ -66,10 +66,8 @@ def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
   | lit b => ⟨lit b, by simp⟩
   | var v =>
     match h : va.find? v with
-    | none =>
-      ⟨var v, by aesop⟩
-    | some b =>
-      ⟨lit b, by aesop⟩
+    | none => ⟨var v, by aesop⟩
+    | some b => ⟨lit b, by aesop⟩
   | .ite (lit true) t e =>
     have ⟨t', ht'⟩ := E.normalize va t
     ⟨t', by aesop⟩
@@ -103,15 +101,9 @@ def E.normalize (va : Std.RBMap ℕ Bool Ord.compare) :
         admit, sorry⟩
     | some true =>
       have ⟨t', ht'⟩ := E.normalize va t
-      ⟨t', by
-        simp [disjoint, vars, eval, List.subset_def, h,
-          List.disjoint, hasNestedIf, hasConstantIf, hasRedundantIf] at *
-        tauto⟩
+      ⟨t', by aesop⟩
     | some false =>
       have ⟨e', he'⟩ := E.normalize va e
-      ⟨e', by
-        simp [disjoint, vars, eval, List.subset_def, h,
-          List.disjoint, hasNestedIf, hasConstantIf, hasRedundantIf] at *
-        tauto⟩
+      ⟨e', by aesop⟩
 
 def IfNormalization : Type := { Z : E → E // ∀ e, (Z e).normalized ∧ ∀ f, (Z e).eval f = e.eval f }
