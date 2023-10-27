@@ -54,12 +54,18 @@ theorem eval_ite_eq_eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
   simp only [eval]
   cases eval f a <;> simp [eval]
 
-attribute [simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
-  disjoint vars List.disjoint
+attribute [local simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
+  disjoint vars List.disjoint max_add_add_right max_mul_mul_left
+
+@[simp]
+def E.normSize : E → ℕ
+  | lit _ => 0
+  | var _ => 0
+  | .ite i t e => 2 * normSize i + max (normSize t) (normSize e) + 1
 
 /-- Normalizes the expression at the same time as assign all variables in
 `va` to the literal boolean given by `va` -/
-def E.normalize (va : AList (fun v : ℕ => Bool)) :
+def E.normalize (va : AList (fun _ : ℕ => Bool)) :
     (e : E) → { e' : E // e'.normalized ∧
         (∀ f, e'.eval f = e.eval
           (fun w => (va.lookup w).elim (f w) (fun b => b))) ∧
@@ -156,5 +162,6 @@ def E.normalize (va : AList (fun v : ℕ => Bool)) :
     | some false =>
       have ⟨e', he'⟩ := E.normalize va e
       ⟨e', by aesop⟩
+  termination_by E.normalize e => e.normSize
 
 def IfNormalization : Type := { Z : E → E // ∀ e, (Z e).normalized ∧ ∀ f, (Z e).eval f = e.eval f }
