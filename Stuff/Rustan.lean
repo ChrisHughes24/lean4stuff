@@ -115,46 +115,42 @@ def E.normalize (va : AList (fun _ : ℕ => Bool)) :
           · have := ht₃ w b
             have := he₃ w b
             aesop
-
       else ⟨.ite (var v) t' e', by
-        suffices : v ∉ vars t' ∧ v ∉ vars e'
-        · aesop
-        refine ⟨?_, ?_⟩
-        · intro h
-          have := ht₃ v true h
-          simp at this
-        · intro h
-          have := he₃ v false h
-          simp at this,
-
-        by
-        intro f
-        simp [he₂, ht₂, ht₁]
-        cases hfv : f v
-        · simp only [ne_eq, cond_false, h]
-          congr
-          ext w
+        refine ⟨?_, ?_, ?_⟩
+        · suffices : v ∉ vars t' ∧ v ∉ vars e'
+          · aesop
+          refine ⟨?_, ?_⟩
+          · intro h
+            have := ht₃ v true h
+            simp at this
+          · intro h
+            have := he₃ v false h
+            simp at this
+        · intro f
+          simp [he₂, ht₂, ht₁]
+          cases hfv : f v
+          · simp only [ne_eq, cond_false, h]
+            congr
+            ext w
+            by_cases hwv : w = v
+            · subst w
+              simp [hfv, h]
+            · simp [hwv]
+          · simp only [ne_eq, cond_true, h]
+            congr
+            ext w
+            by_cases hwv : w = v
+            · subst w
+              simp [hfv, h]
+            · simp [hwv]
+        · simp only [vars, List.mem_append, List.mem_singleton]
+          intro w b
           by_cases hwv : w = v
-          · subst w
-            simp [hfv, h]
-          · simp [hwv]
-        · simp only [ne_eq, cond_true, h]
-          congr
-          ext w
-          by_cases hwv : w = v
-          · subst w
-            simp [hfv, h]
-          · simp [hwv],
-
-        by
-        simp only [vars, List.mem_append, List.mem_singleton]
-        intro w b
-        by_cases hwv : w = v
-        · subst v
-          simp [h]
-        · have := ht₃ w b
-          have := he₃ w b
-          aesop⟩
+          · subst v
+            simp [h]
+          · have := ht₃ w b
+            have := he₃ w b
+            aesop⟩
     | some true =>
       have ⟨t', ht'⟩ := E.normalize va t
       ⟨t', by aesop⟩
