@@ -1,4 +1,3 @@
-import Mathlib.Tactic
 import Mathlib.Data.List.AList
 
 inductive E
@@ -165,3 +164,11 @@ def E.normalize (va : AList (fun _ : ℕ => Bool)) :
   termination_by E.normalize e => e.normSize
 
 def IfNormalization : Type := { Z : E → E // ∀ e, (Z e).normalized ∧ ∀ f, (Z e).eval f = e.eval f }
+
+example : IfNormalization :=
+  ⟨fun e => (E.normalize ∅ e).1, by
+    intro e
+    refine ⟨(E.normalize ∅ e).2.1, ?_⟩
+    intro f
+    rw [(E.normalize ∅ e).2.2.1 f]
+    simp⟩
