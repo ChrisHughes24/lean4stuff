@@ -100,28 +100,19 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
             refine ⟨fun _ => ?_, fun _ => ?_⟩ <;>
             { congr
               ext w
-              by_cases hwv : w = v
-              · subst w
-                simp [hfv, h]
-              · simp [hwv] }
+              by_cases hwv : w = v <;> aesop }
           · simp only [cond_true, h, Option.elim, ht₁]
             refine ⟨fun _ => ?_, fun _ => ?_⟩ <;>
             { congr
               ext w
-              by_cases hwv : w = v
-              · subst w
-                simp [hfv, h]
-              · simp [hwv] }
+              by_cases hwv : w = v <;> aesop }
         · have := ht₃ v true
           have := he₃ v false
           aesop
         · intro w b
           have := ht₃ w b
           have := he₃ w b
-          by_cases hwv : w = v
-          · subst v
-            simp [h]
-          · aesop⟩
+          by_cases w = v <;> aesop⟩
     | some b =>
       have ⟨e', he'⟩ := E.normalize l (.ite (lit b) t e)
       ⟨e', by aesop⟩
