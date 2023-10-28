@@ -61,7 +61,7 @@ attribute [local simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
 def E.normSize : E → ℕ
   | lit _ => 0
   | var _ => 1
-  | .ite i t e => 2 * normSize i +  max (normSize t) (normSize e) + 1
+  | .ite i t e => 2 * normSize i + max (normSize t) (normSize e) + 1
 
 /-- Normalizes the expression at the same time as assigning all variables in
 `l` to the literal boolean given by `l` -/
