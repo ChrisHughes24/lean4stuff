@@ -4,7 +4,7 @@ inductive E
 | lit : Bool → E
 | var : Nat → E
 | ite : E → E → E → E
-deriving DecidableEq
+deriving DecidableEq, Repr
 
 def E.hasNestedIf : E → Bool
 | lit _ => false
@@ -48,7 +48,7 @@ def E.eval (f : Nat → Bool) : E → Bool
 
 open E
 
-theorem eval_ite_eq_eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
+theorem E.eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
     (ite (ite a b c) d e).eval f = (ite a (ite b d e) (ite c d e)).eval f := by
   simp only [eval]
   cases eval f a <;> simp [eval]
@@ -62,32 +62,32 @@ def E.normSize : E → ℕ
   | var _ => 0
   | .ite i t e => 2 * normSize i + max (normSize t) (normSize e) + 1
 
-/-- Normalizes the expression at the same time as assign all variables in
-`va` to the literal boolean given by `va` -/
-def E.normalize (va : AList (fun _ : ℕ => Bool)) :
+/-- Normalizes the expression at the same time as assigning all variables in
+`l` to the literal boolean given by `l` -/
+def E.normalize (l : AList (fun _ : ℕ => Bool)) :
     (e : E) → { e' : E // e'.normalized ∧
         (∀ f, e'.eval f = e.eval
-          (fun w => (va.lookup w).elim (f w) (fun b => b))) ∧
-        ∀ (v : ℕ) (b : Bool), v ∈ vars e' → va.lookup v ≠ some b }
+          (fun w => (l.lookup w).elim (f w) (fun b => b))) ∧
+        ∀ (v : ℕ) (b : Bool), v ∈ vars e' → l.lookup v ≠ some b }
   | lit b => ⟨lit b, by simp⟩
   | var v =>
-    match h : va.lookup v with
+    match h : l.lookup v with
     | none => ⟨var v, by aesop⟩
     | some b => ⟨lit b, by aesop⟩
   | .ite (lit true) t e =>
-    have ⟨t', ht'⟩ := E.normalize va t
+    have ⟨t', ht'⟩ := E.normalize l t
     ⟨t', by aesop⟩
   | .ite (lit false) t e =>
-    have ⟨e', he'⟩ := E.normalize va e
+    have ⟨e', he'⟩ := E.normalize l e
     ⟨e', by aesop⟩
   | .ite (.ite a b c) d e =>
-    have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize va (.ite a (.ite b d e) (.ite c d e))
-    ⟨t', ht₁, fun f => by rw [ht₂, eval_ite_eq_eval_ite_ite], ht₃⟩
+    have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize l (.ite a (.ite b d e) (.ite c d e))
+    ⟨t', ht₁, fun f => by rw [ht₂, eval_ite_ite], ht₃⟩
   | .ite (var v) t e =>
-    match h : va.lookup v with
+    match h : l.lookup v with
     | none =>
-      have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize (va.insert v true) t
-      have ⟨e', he₁, he₂, he₃⟩ := E.normalize (va.insert v false) e
+      have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize (l.insert v true) t
+      have ⟨e', he₁, he₂, he₃⟩ := E.normalize (l.insert v false) e
       if hte' : t' = e'
       then by
         subst hte'
@@ -117,26 +117,20 @@ def E.normalize (va : AList (fun _ : ℕ => Bool)) :
             aesop
       else ⟨.ite (var v) t' e', by
         refine ⟨?_, ?_, ?_⟩
-        · suffices : v ∉ vars t' ∧ v ∉ vars e'
-          · aesop
-          refine ⟨?_, ?_⟩
-          · intro h
-            have := ht₃ v true h
-            simp at this
-          · intro h
-            have := he₃ v false h
-            simp at this
+        · have := ht₃ v true
+          have := he₃ v false
+          aesop
         · intro f
-          simp [he₂, ht₂, ht₁]
+          simp only [eval, ht₂, Option.elim, he₂]
           cases hfv : f v
-          · simp only [ne_eq, cond_false, h]
+          · simp only [cond_false, h]
             congr
             ext w
             by_cases hwv : w = v
             · subst w
               simp [hfv, h]
             · simp [hwv]
-          · simp only [ne_eq, cond_true, h]
+          · simp only [cond_true, h]
             congr
             ext w
             by_cases hwv : w = v
@@ -152,19 +146,15 @@ def E.normalize (va : AList (fun _ : ℕ => Bool)) :
             have := he₃ w b
             aesop⟩
     | some true =>
-      have ⟨t', ht'⟩ := E.normalize va t
+      have ⟨t', ht'⟩ := E.normalize l t
       ⟨t', by aesop⟩
     | some false =>
-      have ⟨e', he'⟩ := E.normalize va e
+      have ⟨e', he'⟩ := E.normalize l e
       ⟨e', by aesop⟩
   termination_by E.normalize e => e.normSize
 
 def IfNormalization : Type := { Z : E → E // ∀ e, (Z e).normalized ∧ ∀ f, (Z e).eval f = e.eval f }
 
 example : IfNormalization :=
-  ⟨fun e => (E.normalize ∅ e).1, by
-    intro e
-    refine ⟨(E.normalize ∅ e).2.1, ?_⟩
-    intro f
-    rw [(E.normalize ∅ e).2.2.1 f]
-    simp⟩
+  ⟨fun e => (E.normalize ∅ e).1,
+   fun e => ⟨(E.normalize ∅ e).2.1, fun f => by simp [(E.normalize ∅ e).2.2.1 f]⟩⟩
