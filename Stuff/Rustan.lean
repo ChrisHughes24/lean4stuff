@@ -64,10 +64,9 @@ theorem E.eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
 `l` to the literal boolean given by `l` -/
 def E.normalize (l : AList (fun _ : ℕ => Bool)) :
     (e : E) → { e' : E //
-        (∀ f, e'.eval f = e.eval
-          (fun w => (l.lookup w).elim (f w) (fun b => b))) ∧
-        e'.normalized ∧
-        ∀ (v : ℕ) (b : Bool), v ∈ vars e' → l.lookup v ≠ some b }
+        (∀ f, e'.eval f = e.eval (fun w => (l.lookup w).elim (f w) (fun b => b)))
+        ∧ e'.normalized
+        ∧ ∀ (v : ℕ) (b : Bool), v ∈ vars e' → l.lookup v ≠ some b }
   | lit b => ⟨lit b, by simp⟩
   | var v =>
     match h : l.lookup v with
