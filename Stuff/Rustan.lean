@@ -48,17 +48,15 @@ def E.eval (f : Nat → Bool) : E → Bool
 
 open E
 
-theorem E.eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
-    (ite (ite a b c) d e).eval f = (ite a (ite b d e) (ite c d e)).eval f := by
-  simp only [eval]
-  cases eval f a <;> simp [eval]
-
 attribute [local simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
   disjoint vars List.disjoint max_add_add_right max_mul_mul_left
   Nat.lt_add_one_iff le_add_of_le_right
 
-@[simp]
-def E.normSize : E → ℕ
+theorem E.eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
+    (ite (ite a b c) d e).eval f = (ite a (ite b d e) (ite c d e)).eval f := by
+  cases h : eval f a <;> simp_all
+
+@[simp] def E.normSize : E → ℕ
   | lit _ => 0
   | var _ => 1
   | .ite i t e => 2 * normSize i + max (normSize t) (normSize e) + 1
@@ -95,13 +93,12 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
         · intro f
           simp only [eval, apply_ite (eval f), ite_eq_iff']
           cases hfv : f v
-          · simp (config := {contextual := true}) only
-              [cond_false, h, Option.elim, he₁]
+          · simp (config := {contextual := true}) only [cond_false, h, he₁]
             refine ⟨fun _ => ?_, fun _ => ?_⟩ <;>
             { congr
               ext w
               by_cases w = v <;> aesop }
-          · simp only [cond_true, h, Option.elim, ht₁]
+          · simp only [cond_true, h, ht₁]
             refine ⟨fun _ => ?_, fun _ => ?_⟩ <;>
             { congr
               ext w
