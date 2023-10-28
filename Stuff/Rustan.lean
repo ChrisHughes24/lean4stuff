@@ -89,9 +89,8 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
       have ⟨t', ht₁, ht₂, ht₃⟩ := E.normalize (l.insert v true) t
       have ⟨e', he₁, he₂, he₃⟩ := E.normalize (l.insert v false) e
       ⟨if t' = e' then t' else .ite (var v) t' e', by
-        refine ⟨?_, ?_, ?_⟩
-        · intro f
-          simp only [eval, apply_ite (eval f), ite_eq_iff']
+        refine ⟨fun f => ?_, ?_, fun w b => ?_⟩
+        · simp only [eval, apply_ite (eval f), ite_eq_iff']
           cases hfv : f v
           · simp (config := {contextual := true}) only [cond_false, h, he₁]
             refine ⟨fun _ => ?_, fun _ => ?_⟩ <;>
@@ -106,8 +105,7 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
         · have := ht₃ v true
           have := he₃ v false
           aesop
-        · intro w b
-          have := ht₃ w b
+        · have := ht₃ w b
           have := he₃ w b
           by_cases w = v <;> aesop⟩
     | some b =>
