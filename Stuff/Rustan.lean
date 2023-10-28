@@ -48,9 +48,8 @@ def E.eval (f : Nat → Bool) : E → Bool
 
 open E
 
-attribute [local simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf
-  disjoint vars List.disjoint max_add_add_right max_mul_mul_left
-  Nat.lt_add_one_iff le_add_of_le_right
+attribute [local simp] eval normalized hasNestedIf hasConstantIf hasRedundantIf disjoint vars
+List.disjoint max_add_add_right max_mul_mul_left Nat.lt_add_one_iff le_add_of_le_right
 
 theorem E.eval_ite_ite (a b c d e : E) (f : ℕ → Bool) :
     (ite (ite a b c) d e).eval f = (ite a (ite b d e) (ite c d e)).eval f := by
