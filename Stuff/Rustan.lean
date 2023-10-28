@@ -66,7 +66,7 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
     (e : E) → { e' : E //
         (∀ f, e'.eval f = e.eval (fun w => (l.lookup w).elim (f w) (fun b => b)))
         ∧ e'.normalized
-        ∧ ∀ (v : ℕ) (b : Bool), v ∈ vars e' → l.lookup v ≠ some b }
+        ∧ ∀ (v : ℕ), v ∈ vars e' → l.lookup v = none }
   | lit b => ⟨lit b, by simp⟩
   | var v =>
     match h : l.lookup v with
@@ -100,11 +100,11 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
             { congr
               ext w
               by_cases w = v <;> aesop }
-        · have := ht₃ v true
-          have := he₃ v false
+        · have := ht₃ v
+          have := he₃ v
           aesop
-        · have := ht₃ w b
-          have := he₃ w b
+        · have := ht₃ w
+          have := he₃ w
           by_cases w = v <;> aesop⟩
     | some b =>
       have ⟨e', he'⟩ := E.normalize l (.ite (lit b) t e)
