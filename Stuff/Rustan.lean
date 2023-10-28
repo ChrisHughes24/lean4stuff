@@ -123,8 +123,8 @@ def E.normalize (l : AList (fun _ : ℕ => Bool)) :
             simp [h]
           · aesop⟩
     | some b =>
-      have ⟨e', he₁, he₂⟩ := E.normalize l (.ite (lit b) t e)
-      ⟨e', by aesop, he₂⟩
+      have ⟨e', he'⟩ := E.normalize l (.ite (lit b) t e)
+      ⟨e', by aesop⟩
   termination_by E.normalize e => e.normSize
 
 def IfNormalization : Type := { Z : E → E // ∀ e, (Z e).normalized ∧ ∀ f, (Z e).eval f = e.eval f }
