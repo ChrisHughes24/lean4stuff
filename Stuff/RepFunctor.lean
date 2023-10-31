@@ -12,21 +12,25 @@ structure Corepresentation (F : C ⥤ Type u₂) :=
   ( lift : ∀ X : C, F.obj X → (R ⟶ X))
   ( unit : F.obj R )
   ( map_lift_unit : ∀ (X : C) (f : F.obj X), F.map (lift X f) unit = f )
-  ( lift_unit : lift R unit = 𝟙 R )
+  ( lift_unit : ∀ (X : C) (f : R ⟶ X), lift X (F.map f unit) = f )
 
+@[ext]
 theorem Corepresentation.hom_ext {F : C ⥤ Type u₂}
     {R : Corepresentation F} {X : C} {f g : R.R ⟶ X}
     (h : F.map f R.unit = F.map g R.unit) : f = g := by
-  have hf : f = R.lift R.R R.unit ≫ f := by simp [R.lift_unit]
-  have hg : g = R.lift R.R R.unit ≫ g := by simp [R.lift_unit]
-  rw [hf, hg, map_comp, map_comp, types_comp_apply, map_lift_unit] at h
-  simp only [types_comp_apply] at h
-
+  rw [← R.lift_unit _ f, h, R.lift_unit]
 
 def corepresentableOfCorepresentation (F : C ⥤ Type v₁)
    (R : Corepresentation.{u₁, v₁} F) : Corepresentable F :=
-  ⟨Opposite.op R.R, ⟨⟨fun X f => F.map f R.unit, by
-
-    simp⟩ , _⟩ ⟩
+  ⟨Opposite.op R.R, ⟨⟨fun X f => F.map f R.unit, by aesop_cat⟩,
+    ⟨⟨⟨R.lift, by
+      intros
+      ext
+      apply Corepresentation.hom_ext
+      simp [R.map_lift_unit]⟩, by
+      ext
+      simp [R.lift_unit], by
+      ext
+      simp [R.map_lift_unit]⟩⟩⟩⟩
 
 end CategoryTheory
